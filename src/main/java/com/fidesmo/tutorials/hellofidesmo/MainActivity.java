@@ -7,7 +7,6 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
-import android.nfc.tech.IsoDep;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.View;
@@ -18,6 +17,7 @@ import android.widget.Toast;
 import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
+import org.androidannotations.annotations.OnActivityResult;
 import org.androidannotations.annotations.ViewById;
 import org.androidannotations.annotations.UiThread;
 
@@ -61,19 +61,19 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
     private TagDispatcher dispatcher;
 
     // UI elements
-    @ViewById(R.id.main_text)
-    TextView mainMessage;
-    @ViewById(R.id.install_button)
+    @ViewById
+    TextView mainText;
+    @ViewById
     Button installButton;
 
     @UiThread
     void setMainMessage(int resource) {
-        mainMessage.setText(resource);
+        mainText.setText(resource);
     }
 
     @UiThread
     void setMainMessage(String text) {
-        mainMessage.setText(text);
+        mainText.setText(text);
     }
 
     // Once the UI elements have been drawn, get the object to access the NFC capabilities
@@ -176,8 +176,8 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
      * Calls the Fidesmo App in order to install the HelloFidesmo cardlet into the Fidesmo Card
      * First, it checks whether the Fidesmo App is installed; if not, it opens Google Play
      */
-    @Click(R.id.install_button)
-    protected void launchCardletInstallation() {
+    @Click
+    void installButtonClicked() {
         if (appInstalledOrNot(FIDESMO_APP)) {
             try {
                 // create Intent to the Action exposed by the Fidesmo App
@@ -189,28 +189,21 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
         } else {
             notifyMustInstall();
         }
-
     }
 
     // method called when the Fidesmo App activity has finished
     // Will redraw the screen if it finished successfully
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-
-        if (requestCode == SERVICE_DELIVERY_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-                Log.i(TAG, "Cardlet installation returned SUCCESS");
-                setMainMessage(R.string.put_card);
-                installButton.setVisibility(View.GONE);
-            } else {
-                Log.i(TAG, "Cardlet installation returned FAILURE");
-                Toast.makeText(getApplicationContext(), getString(R.string.failure),
-                        Toast.LENGTH_LONG).show();
-            }
+    @OnActivityResult(SERVICE_DELIVERY_REQUEST_CODE)
+    void onResult(int resultCode) {
+        if (resultCode == RESULT_OK) {
+            Log.i(TAG, "Cardlet installation returned SUCCESS");
+            setMainMessage(R.string.put_card);
+            installButton.setVisibility(View.GONE);
         } else {
-            Log.i(TAG, "Unknown Activity has returned a result");
+            Log.i(TAG, "Cardlet installation returned FAILURE");
+            Toast.makeText(getApplicationContext(), getString(R.string.failure),
+                    Toast.LENGTH_LONG).show();
         }
-
     }
 
     /**
@@ -243,7 +236,5 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
         } catch (android.content.ActivityNotFoundException exception) {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(MARKET_VIA_BROWSER_URI + FIDESMO_APP)));
         }
-
     }
-
 }
