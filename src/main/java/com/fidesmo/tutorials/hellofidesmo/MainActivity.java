@@ -19,6 +19,7 @@ import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.ViewById;
+import org.androidannotations.annotations.UiThread;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -65,6 +66,16 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
     @ViewById(R.id.install_button)
     Button installButton;
 
+    @UiThread
+    void setMainMessage(int resource) {
+        mainMessage.setText(resource);
+    }
+
+    @UiThread
+    void setMainMessage(String text) {
+        mainMessage.setText(text);
+    }
+
     // Once the UI elements have been drawn, get the object to access the NFC capabilities
     // If the phone's NFC capability is not enabled, show a dialog
     @AfterViews
@@ -105,7 +116,7 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
     public void tagDiscovered(Tag tag) {
         Log.i(TAG, "Card detected on the NFC interface!");
         try {
-            mainMessage.setText(R.string.reading_card);
+            setMainMessage(R.string.reading_card);
             readCard(AndroidCard.get(tag));
         } catch(IOException ioe) {
             Log.e(TAG, "Failed to produce card from tag", ioe);
@@ -136,12 +147,12 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
             byte[] payload = Utils.responseData(response);
             String printableResponse = new String();
             for (int i=0; i<payload.length; i++) printableResponse += (char)payload[i];
-            mainMessage.setText(printableResponse);
+            setMainMessage(printableResponse);
 
         } else {
             Log.i(TAG, "Card returned FAILURE");
             // enable the button so the user can install the cardlet
-            mainMessage.setText(R.string.cardlet_not_installed);
+            setMainMessage(R.string.cardlet_not_installed);
             installButton.setVisibility(View.VISIBLE);
         }
     }
@@ -189,7 +200,7 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
         if (requestCode == SERVICE_DELIVERY_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 Log.i(TAG, "Cardlet installation returned SUCCESS");
-                mainMessage.setText(R.string.put_card);
+                setMainMessage(R.string.put_card);
                 installButton.setVisibility(View.GONE);
             } else {
                 Log.i(TAG, "Cardlet installation returned FAILURE");
