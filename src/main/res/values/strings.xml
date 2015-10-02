@@ -8,7 +8,8 @@
     <string name="install_button">Install cardlet:\nHelloFidesmo</string>
     <string name="install_app_message">You need to install the Fidesmo App on your phone</string>
     <string name="enable_nfc">Please go to your phone settings and turn on NFC</string>
-    <string name="dismiss">Continue</string>
+    <string name="quit">Quit</string>
     <string name="failure">HelloFidesmo cardlet installation failed</string>
+    <string name="no_nfc_available">This device does not have NFC.</string>
 
 </resources>
