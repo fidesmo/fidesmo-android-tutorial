@@ -19,14 +19,4 @@
         android:layout_marginRight="30dp"
         android:layout_marginLeft="30dp"/>
 
-    <Button
-        android:id="@+id/install_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/install_button"
-        android:layout_below="@+id/main_text"
-        android:layout_centerHorizontal="true"
-        android:visibility="gone"
-        />
-
 </RelativeLayout>
