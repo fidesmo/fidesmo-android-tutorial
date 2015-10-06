@@ -2,7 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.fidesmo.tutorials.hellofidesmo" >
 
-    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.NFC" />
 
     <uses-feature android:name="android.hardware.nfc" android:required="true" />
