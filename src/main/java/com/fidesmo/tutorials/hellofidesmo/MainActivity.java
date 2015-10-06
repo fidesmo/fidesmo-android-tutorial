@@ -1,20 +1,16 @@
 package com.fidesmo.tutorials.hellofidesmo;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.nfc.NfcAdapter;
 import android.nfc.Tag;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.OnActivityResult;
@@ -38,7 +34,7 @@ import nordpol.Apdu;
  *  the service delivery process using the Fidesmo App
  */
 @EActivity(R.layout.activity_main)
-public class MainActivity extends ActionBarActivity implements OnDiscoveredTagListener {
+public class MainActivity extends AppCompatActivity implements OnDiscoveredTagListener {
 
     // APPLICATION_ID is the value assigned to your application by Fidesmo
     final private static String APPLICATION_ID = "C8739B19";
@@ -59,7 +55,7 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
 
     private static final String TAG = "MainActivity";
     // The TagDispatcher is responsible for managing the NFC for the activity
-    private TagDispatcher dispatcher;
+    private TagDispatcher tagDispatcher;
 
     // UI elements
     @ViewById
@@ -77,48 +73,40 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
         mainText.setText(text);
     }
 
-    // Once the UI elements have been drawn, get the object to access the NFC capabilities
-    // If the phone's NFC capability is not enabled, show a dialog
-    @AfterViews
-    void setupNFC(){
-        NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
-        if (!adapter.isEnabled()) {
-            Log.i(TAG, "NFC is not enabled. This is an error");
-            showTurnNFCDialog();
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
         // The first argument is the activity for which the NFC is managed
         // The second argument is the OnDiscoveredTagListener which is also implemented by this activity
         // This means that tagDiscovered will be called whenever a new tag appears
-        dispatcher = TagDispatcher.get(this, this);
+        tagDispatcher = TagDispatcher.get(this, this);
+        // Start listening on the NFC interface when the app gains focus.
+        tagDispatcher.enableExclusiveNfc();
     }
 
     // Stop listening on the NFC interface if the app loses focus
     @Override
     public void onPause() {
         super.onPause();
-        dispatcher.disableExclusiveNfc();
-    }
-
-    // Start listening on the NFC interface when the app gains focus.
-    @Override
-    protected void onResume() {
-        super.onResume();
-        dispatcher.enableExclusiveNfc();
+        tagDispatcher.disableExclusiveNfc();
     }
 
     /**
      * This method is called when a contactless device is detected at the NFC interface
      * @param intent the PendingIntent declared in onResume
      */
+    @Override
     protected void onNewIntent(Intent intent) {
-        dispatcher.interceptIntent(intent);
+        tagDispatcher.interceptIntent(intent);
     }
 
+    @Override
     public void tagDiscovered(Tag tag) {
         Log.i(TAG, "Card detected on the NFC interface!");
         try {
             setMainMessage(R.string.reading_card);
-            readCard(AndroidCard.get(tag));
+            IsoCard isoCard = AndroidCard.get(tag);
+            readCard(isoCard);
         } catch(IOException ioe) {
             Log.e(TAG, "Failed to produce card from tag", ioe);
         }
@@ -129,14 +117,14 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
      * - If the response's status bytes are '90 00' (=APDU successfully executed), it displays the response payload
      * - If not, it assumes that HelloFidesmo cardlet was not installed and shows a button
      *   so the user can launch the installation process
-     * @param card card detected at the NFC interface, supporting ISO 14443/4 standard
+     * @param isoCard card detected at the NFC interface, supporting ISO 14443/4 standard
      */
-    protected void readCard(final IsoCard card) {
+    protected void readCard(final IsoCard isoCard) {
         byte[] response = null;
         try {
-            card.connect();
-            response = card.transceive(Apdu.select(APPLICATION_ID, APP_VERSION));
-            card.close();
+            isoCard.connect();
+            response = isoCard.transceive(Apdu.select(APPLICATION_ID, APP_VERSION));
+            isoCard.close();
         } catch (IOException e) {
             Log.e(TAG, "Error reading card", e);
         }
@@ -156,21 +144,6 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
             setMainMessage(R.string.cardlet_not_installed);
             installButton.setVisibility(View.VISIBLE);
         }
-    }
-
-    /**
-     * Shows a dialog asking the user to enable the NFC functions, and exits when clicked
-     */
-    protected void showTurnNFCDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.enable_nfc);
-        builder.setPositiveButton(R.string.dismiss, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                finish();
-            }
-        });
-        AlertDialog dialog = builder.create();
-        dialog.show();
     }
 
     /**

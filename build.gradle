@@ -4,8 +4,8 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.0.0'
-        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.4+'
+        classpath 'com.android.tools.build:gradle:1.3.0'
+        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.7'
     }
 }
 
@@ -13,12 +13,12 @@ apply plugin: 'com.android.application'
 apply plugin: 'android-apt'
 
 android {
-    buildToolsVersion '22.0.1'
-    compileSdkVersion 22
+    buildToolsVersion '23.0.1'
+    compileSdkVersion 23
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 22
+        targetSdkVersion 23
     }
 }
 
@@ -29,14 +29,14 @@ repositories {
     }
 }
 
-def AAVersion = '3.1'
+def AAVersion = '3.3.2'
 
 dependencies {
     apt "org.androidannotations:androidannotations:$AAVersion"
     compile "org.androidannotations:androidannotations-api:$AAVersion"
-    compile group: 'com.fidesmo', name: 'nordpol-android', version: '0.1.5', ext: 'aar', transitive: true
+    compile group: 'com.fidesmo', name: 'nordpol-android', version: '0.1.6', ext: 'aar', transitive: true
     compile fileTree(dir: 'libs', include: '*.jar')
-    compile "com.android.support:appcompat-v7:22.0.+"
+    compile "com.android.support:appcompat-v7:23.0.1"
 }
 
 apt {
@@ -47,5 +47,5 @@ apt {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.2.1'
+    gradleVersion = '2.6'
 }
