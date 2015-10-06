@@ -1,34 +1,23 @@
 package com.fidesmo.tutorials.hellofidesmo;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.Uri;
-import android.nfc.NfcAdapter;
 import android.nfc.Tag;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import org.androidannotations.annotations.AfterViews;
-import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
-import org.androidannotations.annotations.OnActivityResult;
 import org.androidannotations.annotations.ViewById;
 import org.androidannotations.annotations.UiThread;
 
 import java.io.IOException;
-import java.util.Arrays;
 
+import nordpol.Apdu;
 import nordpol.IsoCard;
 import nordpol.android.AndroidCard;
 import nordpol.android.TagDispatcher;
 import nordpol.android.OnDiscoveredTagListener;
-import nordpol.Apdu;
+
 /**
  * Unique Activity in the HelloFidesmo example app, written for the Fidesmo Android tutorial
  * It attempts to open the NFC interface (if disabled, shows a dialog to the user)
@@ -38,35 +27,32 @@ import nordpol.Apdu;
  *  the service delivery process using the Fidesmo App
  */
 @EActivity(R.layout.activity_main)
-public class MainActivity extends ActionBarActivity implements OnDiscoveredTagListener {
-
-    // APPLICATION_ID is the value assigned to your application by Fidesmo
-    final private static String APPLICATION_ID = "C8739B19";
-    final private static String APP_VERSION = "0101";
-    final private static String SERVICE_ID = "HelloFidesmo";
-    final private static byte[] successfulApdu = new byte[]{(byte)0x90, 0x00};
-
-    // Constants used to initiate cardlet delivery through the Fidesmo App
-    private final static String FIDESMO_APP = "com.fidesmo.sec.android";
-    private final static String SERVICE_URI = "https://api.fidesmo.com/service/";
-    private final static String SERVICE_DELIVERY_CARD_ACTION = "com.fidesmo.sec.DELIVER_SERVICE";
-    // Code to identify the call when starting Intent for Result
-    static private final int SERVICE_DELIVERY_REQUEST_CODE = 724;
-
-    // URLs for Google Play app and to install apps via browser
-    private final static String MARKET_URI = "market://details?id=";
-    private final static String MARKET_VIA_BROWSER_URI = "http://play.google.com/store/apps/details?id=";
+public class MainActivity extends AppCompatActivity implements OnDiscoveredTagListener {
 
     private static final String TAG = "MainActivity";
+
+    //APDU commands
+    private static final byte[] SELECT_APDU = {0x00, (byte) 0xa4, 0x04, 0x00, 0x08, (byte) 0xa0, 0x00, 0x00, 0x05, 0x27, 0x21, 0x01, 0x01};
+    private static final byte[] CALCULATE_APDU = {0x00, (byte)0xa2, 0x00, 0x01, 0x00};
+    private static final byte[] SEND_REMAINING_APDU = {0x00, (byte) 0xa5, 0x00, 0x00, 0x00};
+    private static final byte[] OK_APDU = {(byte) 0x90, 0x00};
+
+    String fidesmoAidOtp = "94C3CD60";
+    String helloFidesmoAid = "C8739B19";
+
+    //TODO What is this?
+    private static final int[] MOD = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
+
+    private static final String TOTP_CODE_NAME = "FidesmoOTPTutorial:tutorial@fidesmo.com";
+
     // The TagDispatcher is responsible for managing the NFC for the activity
-    private TagDispatcher dispatcher;
+    private TagDispatcher tagDispatcher;
 
     // UI elements
     @ViewById
     TextView mainText;
-    @ViewById
-    Button installButton;
 
+    //Two methods for setting the UI (on UI thread, because, threading...)
     @UiThread
     void setMainMessage(int resource) {
         mainText.setText(resource);
@@ -77,165 +63,181 @@ public class MainActivity extends ActionBarActivity implements OnDiscoveredTagLi
         mainText.setText(text);
     }
 
-    // Once the UI elements have been drawn, get the object to access the NFC capabilities
-    // If the phone's NFC capability is not enabled, show a dialog
-    @AfterViews
-    void setupNFC(){
-        NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
-        if (!adapter.isEnabled()) {
-            Log.i(TAG, "NFC is not enabled. This is an error");
-            showTurnNFCDialog();
-        }
-        // The first argument is the activity for which the NFC is managed
-        // The second argument is the OnDiscoveredTagListener which is also implemented by this activity
-        // This means that tagDiscovered will be called whenever a new tag appears
-        dispatcher = TagDispatcher.get(this, this);
-    }
-
-    // Stop listening on the NFC interface if the app loses focus
-    @Override
-    public void onPause() {
-        super.onPause();
-        dispatcher.disableExclusiveNfc();
-    }
-
-    // Start listening on the NFC interface when the app gains focus.
     @Override
     protected void onResume() {
         super.onResume();
-        dispatcher.enableExclusiveNfc();
+        // The first argument is the activity for which the NFC is managed
+        // The second argument is the OnDiscoveredTagListener which is also
+        // implemented by this activity
+        // This means that tagDiscovered will be called whenever a new tag appears
+        tagDispatcher = TagDispatcher.get(this, this);
+        // Start listening on the NFC interface when the app gains focus.
+        tagDispatcher.enableExclusiveNfc();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // Stop listening on the NFC interface if the app loses focus
+        tagDispatcher.disableExclusiveNfc();
     }
 
     /**
      * This method is called when a contactless device is detected at the NFC interface
      * @param intent the PendingIntent declared in onResume
      */
+    @Override
     protected void onNewIntent(Intent intent) {
-        dispatcher.interceptIntent(intent);
+        tagDispatcher.interceptIntent(intent);
     }
 
+    //Called whenever a tag is discovered on the NFC interface
+    @Override
     public void tagDiscovered(Tag tag) {
-        Log.i(TAG, "Card detected on the NFC interface!");
         try {
             setMainMessage(R.string.reading_card);
-            readCard(AndroidCard.get(tag));
+            IsoCard isoCard = AndroidCard.get(tag);
+            communicateWithCard(isoCard);
         } catch(IOException ioe) {
             Log.e(TAG, "Failed to produce card from tag", ioe);
         }
     }
 
     /**
-     * Sends a SELECT APDU to the HelloFidesmo cardlet on the card and parses the response
+     * Sends a SELECT APDU to the cardlet on the card and parses the response
      * - If the response's status bytes are '90 00' (=APDU successfully executed), it displays the response payload
-     * - If not, it assumes that HelloFidesmo cardlet was not installed and shows a button
-     *   so the user can launch the installation process
-     * @param card card detected at the NFC interface, supporting ISO 14443/4 standard
+     * @param isoCard card detected at the NFC interface, supporting ISO 14443/4 standard
      */
-    protected void readCard(final IsoCard card) {
-        byte[] response = null;
+    protected void communicateWithCard(final IsoCard isoCard) {
         try {
-            card.connect();
-            response = card.transceive(Apdu.select(APPLICATION_ID, APP_VERSION));
-            card.close();
+            //Connect to the card
+            isoCard.connect();
+            //TODO Send a nordpol select command to the app with versionnumber and make sure we are a go
+            requireStatus(send(SELECT_APDU, isoCard), OK_APDU);
+            //requireStatus(isoCard.transceive(Apdu.select(helloFidesmoAid)), OK_APDU);
         } catch (IOException e) {
-            Log.e(TAG, "Error reading card", e);
+            e.printStackTrace();
         }
 
-        // Analyze the response. Its last two bytes are the status bytes - '90 00' means 'success'
-        if (response != null && Arrays.equals(Apdu.statusBytes(response), successfulApdu)) {
-            Log.i(TAG, "Card returned SUCCESS");
-            // print the message
-            byte[] payload = Apdu.responseData(response);
-            String printableResponse = new String();
-            for (int i=0; i<payload.length; i++) printableResponse += (char)payload[i];
-            setMainMessage(printableResponse);
+        //Get a time stamp for creating a TOTP code APDU from
+        long timeStamp = getTimeStamp();
 
-        } else {
-            Log.i(TAG, "Card returned FAILURE");
-            // enable the button so the user can install the cardlet
-            setMainMessage(R.string.cardlet_not_installed);
-            installButton.setVisibility(View.VISIBLE);
-        }
-    }
+        //Get the APDU command for generating the TOTP code with the name TOTP_CODE_NAME and generated for the time in timeStamp. We are looking for a predefined TOTP token.
+        byte[] totpCodeApdu = getTotpCodeApdu(TOTP_CODE_NAME, timeStamp);
 
-    /**
-     * Shows a dialog asking the user to enable the NFC functions, and exits when clicked
-     */
-    protected void showTurnNFCDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.enable_nfc);
-        builder.setPositiveButton(R.string.dismiss, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                finish();
-            }
-        });
-        AlertDialog dialog = builder.create();
-        dialog.show();
-    }
+        //Get the TOTP code from the card with our APDU
+        String totpCodeString = getTotpCode(totpCodeApdu, isoCard);
 
-    /**
-     * Calls the Fidesmo App in order to install the HelloFidesmo cardlet into the Fidesmo Card
-     * First, it checks whether the Fidesmo App is installed; if not, it opens Google Play
-     */
-    @Click
-    void installButtonClicked() {
-        if (appInstalledOrNot(FIDESMO_APP)) {
-            try {
-                // create Intent to the Action exposed by the Fidesmo App
-                Intent intent = new Intent(SERVICE_DELIVERY_CARD_ACTION, Uri.parse(SERVICE_URI + APPLICATION_ID + "/" + SERVICE_ID));
-                startActivityForResult(intent, SERVICE_DELIVERY_REQUEST_CODE);
-            } catch (IllegalArgumentException e) {
-                Log.e(TAG, "Error when parsing URI");
-            }
-        } else {
-            notifyMustInstall();
-        }
-    }
+        //Set the generated code as main message
+        setMainMessage(totpCodeString);
 
-    // method called when the Fidesmo App activity has finished
-    // Will redraw the screen if it finished successfully
-    @OnActivityResult(SERVICE_DELIVERY_REQUEST_CODE)
-    void onResult(int resultCode) {
-        if (resultCode == RESULT_OK) {
-            Log.i(TAG, "Cardlet installation returned SUCCESS");
-            setMainMessage(R.string.put_card);
-            installButton.setVisibility(View.GONE);
-        } else {
-            Log.i(TAG, "Cardlet installation returned FAILURE");
-            Toast.makeText(getApplicationContext(), getString(R.string.failure),
-                    Toast.LENGTH_LONG).show();
-        }
-    }
-
-    /**
-     * Use the package manager to detect if an application is installed on the phone
-     * @param uri an URI identifying the application's package
-     * @return 'true' is the app is installed
-     */
-    private boolean appInstalledOrNot(String uri) {
-        PackageManager pm = getPackageManager();
-        boolean app_installed = false;
+        //Close the card communication.
         try {
-            pm.getPackageInfo(uri, PackageManager.GET_ACTIVITIES);
-            app_installed = true;
+            isoCard.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        catch (PackageManager.NameNotFoundException e) {
-            Log.i(TAG, "Fidesmo App not installed in phone");
-            app_installed = false;
-        }
-        return app_installed;
     }
 
-    /**
-     * Show a Toast message to the user informing that Fidesmo App must be installed and launch the Google Play app-store
-     */
-    private void notifyMustInstall() {
-        Toast.makeText(getApplicationContext(), R.string.install_app_message, Toast.LENGTH_LONG).show();
-        // if the Google Play app is not installed, call the browser
+    private static long getTimeStamp() {
+        //Get the current time + 10s to ensure that our generated code is valid at least for that long.
+        return (System.currentTimeMillis() / 1000 + 10) / 30;
+    }
+
+    private String getTotpCode(byte[] totpCodeApdu, IsoCard isoCard) {
+        //Get a raw TOTP code that has to be cleaned later
+        byte[] rawTotpCode = null;
         try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(MARKET_URI + FIDESMO_APP)));
-        } catch (android.content.ActivityNotFoundException exception) {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(MARKET_VIA_BROWSER_URI + FIDESMO_APP)));
+            rawTotpCode = requireStatus(send(totpCodeApdu, isoCard), OK_APDU);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        //Parse and fix TOTP code before returning it
+        String totpCode = null;
+        final byte T_RESPONSE_TAG = 0x76;
+        try {
+            totpCode = codeFromTruncated(parseBlock(rawTotpCode, 0, T_RESPONSE_TAG));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return totpCode;
+    }
+
+    private static boolean compareStatus(byte[] apdu, byte[] status) {
+        return apdu[apdu.length - 2] == status[0] && apdu[apdu.length - 1] == status[1];
+    }
+
+    private static byte[] requireStatus(byte[] apdu, byte[] status) throws IOException {
+        if (!compareStatus(apdu, status)) {
+            String expected = String.format("%02x%02x", 0xff & status[0], 0xff & status[1]).toUpperCase();
+            String actual = String.format("%02x%02x", 0xff & apdu[apdu.length - 2], 0xff & apdu[apdu.length - 1]).toUpperCase();
+            throw new IOException("Require APDU status: " + expected + ", got " + actual);
+        }
+        return apdu;
+    }
+
+    private static byte[] getTotpCodeApdu(String name, long timestamp) {
+        final byte NAME_TAG = 0x71;
+        final byte CHALLENGE_TAG = 0x74;
+
+        byte[] nameBytes = name.getBytes();
+        byte[] data = new byte[CALCULATE_APDU.length + 2 + nameBytes.length + 10];
+        System.arraycopy(CALCULATE_APDU, 0, data, 0, CALCULATE_APDU.length);
+        int offset = 4;
+        data[offset++] = (byte) (data.length - 5);
+        data[offset++] = NAME_TAG;
+        data[offset++] = (byte) nameBytes.length;
+        System.arraycopy(nameBytes, 0, data, offset, nameBytes.length);
+        offset += nameBytes.length;
+
+        data[offset++] = CHALLENGE_TAG;
+        data[offset++] = 8;
+        data[offset++] = 0;
+        data[offset++] = 0;
+        data[offset++] = 0;
+        data[offset++] = 0;
+        data[offset++] = (byte) (timestamp >> 24);
+        data[offset++] = (byte) (timestamp >> 16);
+        data[offset++] = (byte) (timestamp >> 8);
+        data[offset++] = (byte) timestamp;
+
+        return data;
+    }
+
+    private static String codeFromTruncated(byte[] data) {
+        int num_digits = data[0];
+        int code = (data[1] << 24) | ((data[2] & 0xff) << 16) | ((data[3] & 0xff) << 8) | (data[4] & 0xff);
+        return String.format("%0" + num_digits + "d", code % MOD[num_digits]);
+    }
+
+    private byte[] send(byte[] command, IsoCard isoCard) throws IOException {
+        byte[] resp = isoCard.transceive(command);
+        byte[] buf = new byte[2048];
+        int offset = 0;
+
+        while (resp[resp.length - 2] == 0x61) {
+            System.arraycopy(resp, 0, buf, offset, resp.length - 2);
+            offset += resp.length - 2;
+            resp = isoCard.transceive(SEND_REMAINING_APDU);
+        }
+
+        System.arraycopy(resp, 0, buf, offset, resp.length);
+        byte[] properlySized = new byte[offset + resp.length];
+        System.arraycopy(buf, 0, properlySized, 0, properlySized.length);
+
+        return properlySized;
+    }
+
+    private static byte[] parseBlock(byte[] data, int offset, byte identifier) throws IOException {
+        if (data[offset] == identifier) {
+            int length = data[offset + 1];
+            byte[] block = new byte[length];
+            System.arraycopy(data, offset + 2, block, 0, length);
+            return block;
+        } else {
+            throw new IOException("Require block type: " + identifier + ", got: " + data[offset]);
         }
     }
 }

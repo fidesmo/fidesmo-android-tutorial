@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">HelloFidesmo</string>
+    <string name="app_name">FiHellodesmoOTP</string>
     <string name="put_card">Please put the card against the back of the phone</string>
     <string name="reading_card">Reading card...</string>
     <string name="cardlet_not_installed">It seems that HelloFidesmo cardlet is not installed on the card.\nDo you want to install it?</string>
     <string name="install_button">Install cardlet:\nHelloFidesmo</string>
     <string name="install_app_message">You need to install the Fidesmo App on your phone</string>
     <string name="enable_nfc">Please go to your phone settings and turn on NFC</string>
-    <string name="dismiss">Continue</string>
+    <string name="quit">Quit</string>
     <string name="failure">HelloFidesmo cardlet installation failed</string>
+    <string name="no_nfc_available">This device does not have NFC.</string>
 
 </resources>
