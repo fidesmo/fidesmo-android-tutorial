@@ -18,7 +18,6 @@ import org.androidannotations.annotations.ViewById;
 import org.androidannotations.annotations.UiThread;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import nordpol.IsoCard;
 import nordpol.android.AndroidCard;
@@ -40,7 +39,6 @@ public class MainActivity extends AppCompatActivity implements OnDiscoveredTagLi
     final private static String APPLICATION_ID = "C8739B19";
     final private static String APP_VERSION = "0101";
     final private static String SERVICE_ID = "HelloFidesmo";
-    final private static byte[] successfulApdu = new byte[]{(byte)0x90, 0x00};
 
     // Constants used to initiate cardlet delivery through the Fidesmo App
     private final static String FIDESMO_APP = "com.fidesmo.sec.android";
@@ -124,25 +122,24 @@ public class MainActivity extends AppCompatActivity implements OnDiscoveredTagLi
         try {
             isoCard.connect();
             response = isoCard.transceive(Apdu.select(APPLICATION_ID, APP_VERSION));
+
+            // Analyze the response. Its last two bytes are the status bytes - '90 00' means 'success'
+            if (Apdu.hasStatus(response, Apdu.OK_APDU)) {
+                Log.i(TAG, "Card returned SUCCESS");
+                // print the message
+                byte[] payload = Apdu.responseData(response);
+                String printableResponse = new String();
+                for (int i=0; i<payload.length; i++) printableResponse += (char)payload[i];
+                setMainMessage(printableResponse);
+            } else {
+                Log.i(TAG, "Card returned FAILURE");
+                // enable the button so the user can install the cardlet
+                setMainMessage(R.string.cardlet_not_installed);
+                installButton.setVisibility(View.VISIBLE);
+            }
             isoCard.close();
         } catch (IOException e) {
             Log.e(TAG, "Error reading card", e);
-        }
-
-        // Analyze the response. Its last two bytes are the status bytes - '90 00' means 'success'
-        if (response != null && Arrays.equals(Apdu.statusBytes(response), successfulApdu)) {
-            Log.i(TAG, "Card returned SUCCESS");
-            // print the message
-            byte[] payload = Apdu.responseData(response);
-            String printableResponse = new String();
-            for (int i=0; i<payload.length; i++) printableResponse += (char)payload[i];
-            setMainMessage(printableResponse);
-
-        } else {
-            Log.i(TAG, "Card returned FAILURE");
-            // enable the button so the user can install the cardlet
-            setMainMessage(R.string.cardlet_not_installed);
-            installButton.setVisibility(View.VISIBLE);
         }
     }
 

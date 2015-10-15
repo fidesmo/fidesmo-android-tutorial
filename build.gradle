@@ -34,7 +34,7 @@ def AAVersion = '3.3.2'
 dependencies {
     apt "org.androidannotations:androidannotations:$AAVersion"
     compile "org.androidannotations:androidannotations-api:$AAVersion"
-    compile group: 'com.fidesmo', name: 'nordpol-android', version: '0.1.6', ext: 'aar', transitive: true
+    compile group: 'com.fidesmo', name: 'nordpol-android', version: '0.1.7', ext: 'aar', transitive: true
     compile fileTree(dir: 'libs', include: '*.jar')
     compile "com.android.support:appcompat-v7:23.0.1"
 }
