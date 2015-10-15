@@ -36,7 +36,7 @@ import nordpol.Apdu;
 public class MainActivity extends AppCompatActivity implements OnDiscoveredTagListener {
 
     // APPLICATION_ID is the value assigned to your application by Fidesmo
-    final private static String APPLICATION_ID = "C8739B19";
+    final private static String APPLICATION_ID = "XXXXXXXX";
     final private static String APP_VERSION = "0101";
     final private static String SERVICE_ID = "HelloFidesmo";
 
@@ -61,14 +61,16 @@ public class MainActivity extends AppCompatActivity implements OnDiscoveredTagLi
     @ViewById
     Button installButton;
 
+    //Two methods for setting the UI (on UI thread, because, threading...)
     @UiThread
     void setMainMessage(int resource) {
-        mainText.setText(resource);
+        setMainMessage(getString(resource));
     }
 
     @UiThread
     void setMainMessage(String text) {
-        mainText.setText(text);
+        String oldString = mainText.getText().toString();
+        mainText.setText(oldString + "\n" + text);
     }
 
     @Override
@@ -100,46 +102,54 @@ public class MainActivity extends AppCompatActivity implements OnDiscoveredTagLi
 
     @Override
     public void tagDiscovered(Tag tag) {
-        Log.i(TAG, "Card detected on the NFC interface!");
+        setMainMessage(R.string.reading_card);
         try {
-            setMainMessage(R.string.reading_card);
             IsoCard isoCard = AndroidCard.get(tag);
-            readCard(isoCard);
-        } catch(IOException ioe) {
-            Log.e(TAG, "Failed to produce card from tag", ioe);
+            communicateWithCard(isoCard);
+        } catch(IOException e) {
+            e.printStackTrace();
         }
     }
 
     /**
      * Sends a SELECT APDU to the HelloFidesmo cardlet on the card and parses the response
-     * - If the response's status bytes are '90 00' (=APDU successfully executed), it displays the response payload
+     * - If the response's status bytes are '90 00' (=APDU successfully executed, Apdu.OK_APDU), it displays the response payload
      * - If not, it assumes that HelloFidesmo cardlet was not installed and shows a button
      *   so the user can launch the installation process
      * @param isoCard card detected at the NFC interface, supporting ISO 14443/4 standard
      */
-    protected void readCard(final IsoCard isoCard) {
-        byte[] response = null;
+    private void communicateWithCard(IsoCard isoCard) {
         try {
             isoCard.connect();
-            response = isoCard.transceive(Apdu.select(APPLICATION_ID, APP_VERSION));
+            //This is where you use your appId to select your app on the card (the one assigned to you when signing up to the Dev Portal)
+            byte[] response = isoCard.transceive(Apdu.select(APPLICATION_ID, APP_VERSION));
 
-            // Analyze the response. Its last two bytes are the status bytes - '90 00' means 'success'
+            // Analyze the response. Its last two bytes are the status bytes - '90 00'/Apdu.OK_APDU means 'success'
             if (Apdu.hasStatus(response, Apdu.OK_APDU)) {
-                Log.i(TAG, "Card returned SUCCESS");
+                setMainMessage(getString(R.string.select_ok));
                 // print the message
                 byte[] payload = Apdu.responseData(response);
                 String printableResponse = new String();
                 for (int i=0; i<payload.length; i++) printableResponse += (char)payload[i];
                 setMainMessage(printableResponse);
             } else {
-                Log.i(TAG, "Card returned FAILURE");
+                setMainMessage(getString(R.string.select_not_ok));
                 // enable the button so the user can install the cardlet
                 setMainMessage(R.string.cardlet_not_installed);
-                installButton.setVisibility(View.VISIBLE);
+                showInstallButton(true);
             }
             isoCard.close();
         } catch (IOException e) {
             Log.e(TAG, "Error reading card", e);
+        }
+    }
+
+    @UiThread
+    void showInstallButton(boolean visibility) {
+        if (visibility){
+            installButton.setVisibility(View.VISIBLE);
+        } else {
+            installButton.setVisibility(View.GONE);
         }
     }
 
