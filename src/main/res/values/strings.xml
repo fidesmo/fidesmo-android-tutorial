@@ -11,5 +11,7 @@
     <string name="quit">Quit</string>
     <string name="failure">HelloFidesmo cardlet installation failed</string>
     <string name="no_nfc_available">This device does not have NFC.</string>
+    <string name="select_ok">Select OK</string>
+    <string name="select_not_ok">Select not OK</string>
 
 </resources>
