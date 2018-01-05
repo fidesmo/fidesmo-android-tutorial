@@ -1,8 +1,15 @@
-fidesmo-android-tutorial
-========================
+# Fidesmo Android Tutorial
 
-This repository contains a simple Android app written for the Android NFC tutorial at [Fidesmo Developer Portal](https://developer.fidesmo.com/tutorials/android)
+1. [Description](#description)
+2. [Usage](#usage)
+4. [Screenshots](#screenshots)
 
+# Description
+This repository contains a simple Android app written for the Android NFC
+tutorial at
+[Fidesmo Developer Portal](https://developer.fidesmo.com/tutorials/android)
+
+# Usage
 Build instructions: command line
 ------------------
 - Clone this repository
@@ -15,7 +22,6 @@ Build instructions: Android Studio IDE
 - In Android Studio, go to menu File -> Import Project
 - In the dialog box "Select Gradle Project Import", find this project's root directory in your filesystem and click 'OK'
 
-Screenshots
----------
+# Screenshots
 ![Screenshot showing the app's startup screen](/docs/Initial_Screenshot.png "Screenshot showing the app's startup screen")
 ![Screenshot showing the app's final screen](/docs/Final_Screenshot.png "Screenshot showing the app's final screen")
