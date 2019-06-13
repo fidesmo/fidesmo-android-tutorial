@@ -37,13 +37,12 @@ public class MainActivity extends AppCompatActivity implements OnDiscoveredTagLi
 
     // APPLICATION_ID is the value assigned to your application by Fidesmo
     final private static String APPLICATION_ID = "XXXXXXXX";
-    final private static String APP_VERSION = "0101";
+    final private static String APP_VERSION = "01";
     final private static String SERVICE_ID = "HelloFidesmo";
 
     // Constants used to initiate cardlet delivery through the Fidesmo App
     private final static String FIDESMO_APP = "com.fidesmo.sec.android";
-    private final static String SERVICE_URI = "https://api.fidesmo.com/service/";
-    private final static String SERVICE_DELIVERY_CARD_ACTION = "com.fidesmo.sec.DELIVER_SERVICE";
+    private final static String SERVICE_URI = "https://apps.fidesmo.com/";
     // Code to identify the call when starting Intent for Result
     static private final int SERVICE_DELIVERY_REQUEST_CODE = 724;
 
@@ -162,7 +161,7 @@ public class MainActivity extends AppCompatActivity implements OnDiscoveredTagLi
         if (appInstalledOrNot(FIDESMO_APP)) {
             try {
                 // create Intent to the Action exposed by the Fidesmo App
-                Intent intent = new Intent(SERVICE_DELIVERY_CARD_ACTION, Uri.parse(SERVICE_URI + APPLICATION_ID + "/" + SERVICE_ID));
+                Intent intent = new Intent("android.intent.action.VIEW", Uri.parse(SERVICE_URI + APPLICATION_ID + "/services/" + SERVICE_ID));
                 startActivityForResult(intent, SERVICE_DELIVERY_REQUEST_CODE);
             } catch (IllegalArgumentException e) {
                 Log.e(TAG, "Error when parsing URI");
